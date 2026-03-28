@@ -655,6 +655,55 @@ body {
   .main-content { grid-template-columns: 1fr; }
   .sidebar { position: static; order: 2; }
   .form-area { order: 1; }
+
+  /* Transform table into stacked cards for completely seamless mobile filling */
+  .items-table { min-width: 100%; }
+  .items-table, .items-table tbody, .items-table tr, .items-table td {
+    display: block;
+    width: 100%;
+  }
+  .items-table thead { display: none; }
+  
+  .items-table tr {
+    margin-bottom: 1.5rem;
+    background: rgba(255,255,255,0.015);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .items-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed rgba(255,255,255,0.05);
+    text-align: right;
+  }
+  .items-table td:last-child { border-bottom: none; justify-content: flex-end; }
+  
+  .items-table td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+  
+  .items-table .form-input, .items-table .form-select {
+    width: 100%;
+    max-width: 65%;
+  }
+  
+  /* Reset hardcoded column widths to allow full liquid expansion */
+  .col-sr, .col-desc, .col-qty, .col-unit, .col-rate, .col-tax, .col-value, .col-action {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
 }
 
 @media (max-width: 768px) {

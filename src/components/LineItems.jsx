@@ -46,9 +46,9 @@ export function LineItemsTable({ items, errors, onItemChange, onAddItem, onRemov
 
               return (
                 <tr key={item.id}>
-                  <td className="col-sr"><span className="sr-number">{idx + 1}</span></td>
+                  <td className="col-sr" data-label="#"><span className="sr-number">{idx + 1}</span></td>
 
-                  <td className="col-desc">
+                  <td className="col-desc" data-label="Description">
                     <input
                       className={`form-input${itemErr.description ? ' error' : ''}`}
                       type="text"
@@ -62,7 +62,7 @@ export function LineItemsTable({ items, errors, onItemChange, onAddItem, onRemov
                     {itemErr.description && <div className="field-error" style={{ marginTop: 2 }}>{itemErr.description}</div>}
                   </td>
 
-                  <td className="col-qty">
+                  <td className="col-qty" data-label="Qty">
                     <input
                       className={`form-input${itemErr.quantity ? ' error' : ''}`}
                       type="number"
@@ -76,7 +76,7 @@ export function LineItemsTable({ items, errors, onItemChange, onAddItem, onRemov
                     />
                   </td>
 
-                  <td className="col-unit">
+                  <td className="col-unit" data-label="Unit">
                     <select
                       className="form-select"
                       value={item.unit}
@@ -89,7 +89,7 @@ export function LineItemsTable({ items, errors, onItemChange, onAddItem, onRemov
                     </select>
                   </td>
 
-                  <td className="col-rate">
+                  <td className="col-rate" data-label="Rate (₹)">
                     <input
                       className={`form-input${itemErr.rate ? ' error' : ''}`}
                       type="number"
@@ -103,7 +103,7 @@ export function LineItemsTable({ items, errors, onItemChange, onAddItem, onRemov
                     />
                   </td>
 
-                  <td className="col-tax">
+                  <td className="col-tax" data-label="CGST %">
                     <input
                       className="form-input"
                       type="number"
@@ -117,7 +117,7 @@ export function LineItemsTable({ items, errors, onItemChange, onAddItem, onRemov
                     />
                   </td>
 
-                  <td className="col-tax">
+                  <td className="col-tax" data-label="SGST %">
                     <input
                       className="form-input"
                       type="number"
@@ -132,22 +132,22 @@ export function LineItemsTable({ items, errors, onItemChange, onAddItem, onRemov
                   </td>
 
                   {/* Computed columns – read only */}
-                  <td className="col-value">
+                  <td className="col-value" data-label="Taxable">
                     <span className="calc-value">₹{formatINR(taxable)}</span>
                   </td>
-                  <td className="col-value">
+                  <td className="col-value" data-label="CGST">
                     <span className="calc-value">₹{formatINR(cgstAmt)}</span>
                   </td>
-                  <td className="col-value">
+                  <td className="col-value" data-label="SGST">
                     <span className="calc-value">₹{formatINR(sgstAmt)}</span>
                   </td>
-                  <td className="col-value">
+                  <td className="col-value" data-label="Total">
                     <span className="calc-value" style={{ color: 'var(--accent)', fontWeight: 700 }}>
                       ₹{formatINR(total)}
                     </span>
                   </td>
 
-                  <td className="col-action">
+                  <td className="col-action" data-label="Action">
                     <button
                       className="btn btn-ghost"
                       onClick={() => onRemoveItem(idx)}
