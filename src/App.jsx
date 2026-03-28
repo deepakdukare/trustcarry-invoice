@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useGoogleLogin } from '@react-oauth/google'
 
 import { Header } from './components/Header.jsx'
@@ -66,22 +66,64 @@ export default function App() {
   const [lastSavedAt, setLastSavedAt] = useState(null)
   const [sheetCustomers, setSheetCustomers] = useState([])
 
+  // ── Auto-Login on Mount (LocalStorage) ──────────────────
+  useEffect(() => {
+    const stored = localStorage.getItem('trustcarry_google_session')
+    if (stored) {
+      try {
+        const session = JSON.parse(stored)
+        if (session.expiresAt > Date.now()) {
+          setAccessToken(session.accessToken)
+          setGoogleUser(session.user)
+          
+          // Instantly load customers silently in background
+          import('./sheetsService.js').then(async (mod) => {
+            try {
+              const custs = await mod.getCustomersFromSheet(session.accessToken)
+              setSheetCustomers(custs)
+            } catch (e) {
+              console.error('Silent fetch failed', e)
+            }
+          })
+        } else {
+          localStorage.removeItem('trustcarry_google_session') // Expired
+        }
+      } catch (e) {
+        localStorage.removeItem('trustcarry_google_session')
+      }
+    }
+  }, [])
+
   // ── Google Login ────────────────────────────────────────
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setAccessToken(tokenResponse.access_token)
+      
+      // Calculate token expiration (default 3599 seconds from Google)
+      const expiresIn = tokenResponse.expires_in || 3599
+      const expiresAt = Date.now() + (expiresIn * 1000)
+      
+      let profile = { name: '', email: '' }
+      
       // Fetch user profile
       try {
         const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         })
-        const profile = await res.json()
+        profile = await res.json()
         setGoogleUser({ name: profile.name, email: profile.email })
         success(`Signed in as ${profile.email}`)
       } catch {
-        setGoogleUser({ name: '', email: '' })
+        setGoogleUser(profile)
         success('Google account connected')
       }
+      
+      // Save session to LocalStorage so page reloads don't require re-login!
+      localStorage.setItem('trustcarry_google_session', JSON.stringify({
+        accessToken: tokenResponse.access_token,
+        expiresAt,
+        user: { name: profile.name, email: profile.email }
+      }))
       
       // Load customers from Sheet2
       try {
@@ -89,9 +131,12 @@ export default function App() {
         setSheetCustomers(custs)
         if (custs.length > 0) {
           success(`Loaded ${custs.length} customers from Sheet2`)
+        } else {
+          error('Sheet2 is empty or does not exist.')
         }
       } catch (err) {
         console.error('Failed to load Sheet2 customers', err)
+        error(`Failed to load Sheet2: ${err.message}`)
       }
     },
     onError: () => error('Google sign-in failed. Please try again.'),
@@ -107,6 +152,8 @@ export default function App() {
     setGoogleUser(null)
     setAccessToken(null)
     setLastSavedAt(null)
+    setSheetCustomers([])
+    localStorage.removeItem('trustcarry_google_session')
     success('Signed out of Google')
   }
 

@@ -88,7 +88,10 @@ export async function getCustomersFromSheet(accessToken) {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
 
-    if (!res.ok) return []
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData?.error?.message || `HTTP ${res.status}`)
+    }
 
     const data = await res.json()
     if (!data.values) return []
