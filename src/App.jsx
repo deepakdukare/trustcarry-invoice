@@ -279,30 +279,46 @@ export default function App() {
       </div>
 
       <main className="main-content" id="main">
-        <div className="form-area">
-          <InvoiceDetailsForm form={form} errors={errors} onChange={handleFormChange} />
-          <BillToForm billTo={form.billTo} errors={errors} onChange={handleBillToChange} sheetCustomers={sheetCustomers} />
-          <LineItemsTable
-            items={items}
-            errors={errors}
-            onItemChange={handleItemChange}
-            onAddItem={handleAddItem}
-            onRemoveItem={handleRemoveItem}
-          />
-          <CompanyInfoCard />
-          <BankInfoCard />
-        </div>
+        {!googleUser ? (
+          <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '5rem 2rem' }}>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>
+              Authentication Required
+            </h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', maxWidth: 500, margin: '0 auto 2rem' }}>
+              To guarantee that every invoice is securely properly logged to your Google Sheet database, you must sign in before generating bills.
+            </p>
+            <button className="btn btn-primary" onClick={() => googleLogin()} style={{ padding: '0.8rem 2rem', fontSize: '1rem' }}>
+               Connect Google to Start
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="form-area">
+              <InvoiceDetailsForm form={form} errors={errors} onChange={handleFormChange} />
+              <BillToForm billTo={form.billTo} errors={errors} onChange={handleBillToChange} sheetCustomers={sheetCustomers} />
+              <LineItemsTable
+                items={items}
+                errors={errors}
+                onItemChange={handleItemChange}
+                onAddItem={handleAddItem}
+                onRemoveItem={handleRemoveItem}
+              />
+              <CompanyInfoCard />
+              <BankInfoCard />
+            </div>
 
-        <SummarySidebar
-          items={items}
-          isPdfLoading={isPdfLoading}
-          isSheetsLoading={isSheetsLoading}
-          googleUser={googleUser}
-          onDownloadPdf={handleDownloadPdf}
-          onSaveToSheets={handleSaveToSheets}
-          onGoogleLogin={() => googleLogin()}
-          lastSavedAt={lastSavedAt}
-        />
+            <SummarySidebar
+              items={items}
+              isPdfLoading={isPdfLoading}
+              isSheetsLoading={isSheetsLoading}
+              googleUser={googleUser}
+              onDownloadPdf={handleDownloadPdf}
+              onSaveToSheets={handleSaveToSheets}
+              onGoogleLogin={() => googleLogin()}
+              lastSavedAt={lastSavedAt}
+            />
+          </>
+        )}
       </main>
 
       <ToastContainer toasts={toasts} onRemove={remove} />

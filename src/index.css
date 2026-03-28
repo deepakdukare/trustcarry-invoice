@@ -651,7 +651,7 @@ body {
 .page-subtitle { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 1024px) {
+@media (max-width: 1350px) {
   .main-content { grid-template-columns: 1fr; }
   .sidebar { position: static; order: 2; }
   .form-area { order: 1; }
