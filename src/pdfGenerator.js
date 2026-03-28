@@ -5,6 +5,9 @@ import {
   calcTotals, formatINR, numberToWords, formatDate, getPdfFilename,
 } from './utils.js'
 
+let robotoRegularBase64 = null;
+let robotoBoldBase64 = null;
+
 // Colors representing the target image style
 const BLUE_LIGHT = [204, 230, 255]
 const GRAY_BORDER = [0, 0, 0] // Sharp black lines like in the image
@@ -29,6 +32,32 @@ function loadImage(url) {
  */
 export async function generateInvoicePDF(form, items) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  
+  // Load custom fonts to fully support Rupee ₹ symbol perfectly
+  try {
+    const fetchFont = async (url) => {
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      const chunk = 8192;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      return window.btoa(bin);
+    };
+
+    if (!robotoRegularBase64) robotoRegularBase64 = await fetchFont('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf');
+    if (!robotoBoldBase64) robotoBoldBase64 = await fetchFont('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Medium.ttf');
+    
+    doc.addFileToVFS('Roboto-Regular.ttf', robotoRegularBase64);
+    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    doc.addFileToVFS('Roboto-Medium.ttf', robotoBoldBase64);
+    doc.addFont('Roboto-Medium.ttf', 'Roboto', 'bold');
+  } catch (err) {
+    console.error('Failed to load custom fonts', err);
+  }
+
   const W = 210
   const margin = 5 // Narrower margins for high density
   const usable = W - (margin * 2)
@@ -40,7 +69,11 @@ export async function generateInvoicePDF(form, items) {
   // ── Helpers ──────────────────────────────────────────────
   function setFont(size, style = 'normal', color = TEXT_DARK) {
     doc.setFontSize(size)
-    doc.setFont('helvetica', style)
+    if (robotoRegularBase64) {
+      doc.setFont('Roboto', style)
+    } else {
+      doc.setFont('helvetica', style)
+    }
     doc.setTextColor(...color)
   }
 
@@ -176,17 +209,20 @@ export async function generateInvoicePDF(form, items) {
   y += billH
 
   // ── 5. ITEMS TABLE (Precision Grid) ─────────────────────
-  // Usable width is 200mm (210 - 5 - 5)
+  // Dynamic column widths to allow scaling
+  const wSr = 8, wName = 48, wQty = 11, wUnit = 11, wRate = 16, wTax = 22, wCgst = 26, wSgst = 26
+  const wTotal = usable - (wSr + wName + wQty + wUnit + wRate + wTax + wCgst + wSgst)
+  
   const colX = {
-    sr: margin,          // 5
-    name: margin + 8,      // 13
-    qty: margin + 63,     // 68
-    unit: margin + 76,    // 81
-    rate: margin + 89,    // 94
-    taxable: margin + 107, // 112
-    cgst: margin + 131,   // 136
-    sgst: margin + 161,   // 166
-    total: margin + 191   // 196
+    sr: margin,
+    name: margin + wSr,
+    qty: margin + wSr + wName,
+    unit: margin + wSr + wName + wQty,
+    rate: margin + wSr + wName + wQty + wUnit,
+    taxable: margin + wSr + wName + wQty + wUnit + wRate,
+    cgst: margin + wSr + wName + wQty + wUnit + wRate + wTax,
+    sgst: margin + wSr + wName + wQty + wUnit + wRate + wTax + wCgst,
+    total: margin + wSr + wName + wQty + wUnit + wRate + wTax + wCgst + wSgst
   }
   const endX = margin + usable // 205
   
@@ -203,61 +239,87 @@ export async function generateInvoicePDF(form, items) {
   doc.text('Taxable', colX.taxable + (colX.cgst - colX.taxable)/2, y + 5, { align: 'center' })
   doc.text('Value', colX.taxable + (colX.cgst - colX.taxable)/2, y + 9, { align: 'center' })
   
-  doc.text('CGST', colX.cgst + 15, y + 4, { align: 'center' })
-  doc.text('SGST', colX.sgst + 15, y + 4, { align: 'center' })
-  doc.text('Total', colX.total + (endX - colX.total)/2, y + 7, { align: 'center' })
+  doc.text('CGST', colX.cgst + wCgst/2, y + 4, { align: 'center' })
+  doc.text('SGST', colX.sgst + wSgst/2, y + 4, { align: 'center' })
+  doc.text('Total', colX.total + wTotal/2, y + 7, { align: 'center' })
   
   // Sub-header Rate/Amount division line
-  line(colX.cgst, y + 6, colX.cgst + 30, y + 6)
-  line(colX.sgst, y + 6, colX.sgst + 30, y + 6)
+  line(colX.cgst, y + 6, colX.cgst + wCgst, y + 6)
+  line(colX.sgst, y + 6, colX.sgst + wSgst, y + 6)
   
-  doc.text('Rate', colX.cgst + 7.5, y + 10, { align: 'center' })
-  doc.text('Amount', colX.cgst + 22.5, y + 10, { align: 'center' })
-  doc.text('Rate', colX.sgst + 7.5, y + 10, { align: 'center' })
-  doc.text('Amount', colX.sgst + 22.5, y + 10, { align: 'center' })
+  doc.text('Rate', colX.cgst + wCgst/4, y + 10, { align: 'center' })
+  doc.text('Amount', colX.cgst + (wCgst*3)/4, y + 10, { align: 'center' })
+  doc.text('Rate', colX.sgst + wSgst/4, y + 10, { align: 'center' })
+  doc.text('Amount', colX.sgst + (wSgst*3)/4, y + 10, { align: 'center' })
   
   // Sub-lines for Rate/Amount columns
-  line(colX.cgst + 15, y + 6, colX.cgst + 15, y + headerH)
-  line(colX.sgst + 15, y + 6, colX.sgst + 15, y + headerH)
+  line(colX.cgst + wCgst/2, y + 6, colX.cgst + wCgst/2, y + headerH)
+  line(colX.sgst + wSgst/2, y + 6, colX.sgst + wSgst/2, y + headerH)
 
   y += headerH
 
   // Table Body Rows
   const tableStart = y
-  const minBodyH = 80
   
-  items.forEach((item, idx) => {
+  // Pre-calculate heights for dynamic multiline text wrapping
+  setFont(9, 'normal')
+  let actualBodyH = 0
+  const wrappedItems = items.map(item => {
+    // split text to fit exactly inside the Name column width
+    const descLines = doc.splitTextToSize(item.description || '', wName - 4)
+    // 1 line = 9mm, each extra line adds 4.5mm
+    const rowH = Math.max(9, (descLines.length * 4.5) + 4.5)
+    actualBodyH += rowH
+    return { ...item, descLines, rowH }
+  })
+
+  const minBodyH = 80
+  const tableEnd = Math.max(tableStart + actualBodyH, tableStart + minBodyH)
+
+  // Highlight the Taxable Value column
+  rect(colX.taxable, tableStart, wTax, tableEnd - tableStart, [230, 245, 255])
+  
+  wrappedItems.forEach((item, idx) => {
     const taxable = calcTaxableValue(item.quantity, item.rate)
     const cgst = calcCGST(taxable, item.cgstRate)
     const sgst = calcSGST(taxable, item.sgstRate)
     const total = taxable + cgst + sgst
+    const h = item.rowH
 
     setFont(9, 'normal')
     doc.text(`${idx + 1}`, colX.sr + 4, y + 6, { align: 'center' })
-    doc.text(item.description, colX.name + 2, y + 6)
+    
+    // Print multiline string array automatically stacked!
+    doc.text(item.descLines, colX.name + 2, y + 6)
+    
     doc.text(`${item.quantity}`, colX.qty + (colX.unit - colX.qty)/2, y + 6, { align: 'center' })
     doc.text(item.unit, colX.unit + (colX.rate - colX.unit)/2, y + 6, { align: 'center' })
     doc.text(Number(item.rate).toFixed(2), colX.taxable - 2, y + 6, { align: 'right' })
     doc.text(formatINR(taxable), colX.cgst - 2, y + 6, { align: 'right' })
-    doc.text(`${item.cgstRate}%`, colX.cgst + 7.5, y + 6, { align: 'center' })
-    doc.text(formatINR(cgst), colX.cgst + 28, y + 6, { align: 'right' })
-    doc.text(`${item.sgstRate}%`, colX.sgst + 7.5, y + 6, { align: 'center' })
-    doc.text(formatINR(sgst), colX.sgst + 28, y + 6, { align: 'right' })
+    doc.text(`${item.cgstRate}%`, colX.cgst + wCgst/4, y + 6, { align: 'center' })
+    doc.text(formatINR(cgst), colX.cgst + wCgst - 2, y + 6, { align: 'right' })
+    doc.text(`${item.sgstRate}%`, colX.sgst + wSgst/4, y + 6, { align: 'center' })
+    doc.text(formatINR(sgst), colX.sgst + wSgst - 2, y + 6, { align: 'right' })
     setFont(9, 'bold')
     doc.text(formatINR(total), endX - 2, y + 6, { align: 'right' })
     
-    line(margin, y + 9, margin + usable, y + 9)
-    y += 9
+    line(margin, y + h, margin + usable, y + h)
+    y += h
   })
 
   // Fill empty table space 
-  const tableEnd = Math.max(y, tableStart + minBodyH)
   rect(margin, tableStart, usable, tableEnd - tableStart)
   
-  // Draw all vertical lines for the grid
-  const vLines = [colX.name, colX.qty, colX.unit, colX.rate, colX.taxable, colX.cgst, colX.cgst + 15, colX.sgst, colX.sgst + 15, colX.total]
-  vLines.forEach(x => {
+  // Draw MAIN vertical lines for the grid (going up to top of header)
+  const mainVLines = [colX.name, colX.qty, colX.unit, colX.rate, colX.taxable, colX.cgst, colX.sgst, colX.total]
+  mainVLines.forEach(x => {
     line(x, tableStart - headerH, x, tableEnd)
+  })
+  
+  // Draw SUB vertical lines for Rate/Amount (starting under the top half of header)
+  const subVLines = [colX.cgst + wCgst/2, colX.sgst + wSgst/2]
+  subVLines.forEach(x => {
+    line(x, tableStart, x, tableEnd)
   })
   
   y = tableEnd
@@ -265,13 +327,26 @@ export async function generateInvoicePDF(form, items) {
   // ── 6. TOTAL QUANTITY ROW (Precision Aligned) ───────────
   const { totalQty, totalTaxable, totalCGST, totalSGST, grandTotal } = calcTotals(items)
   rect(margin, y, usable, 8, BLUE_LIGHT)
+  
+  // Draw vertical lines inside the Total Quantity Row
+  const qtVLines = [colX.qty, colX.unit, colX.rate, colX.taxable, colX.cgst, colX.cgst + wCgst/2, colX.sgst, colX.sgst + wSgst/2, colX.total]
+  qtVLines.forEach(x => {
+    line(x, y, x, y + 8)
+  })
+
   setFont(9, 'bold')
   doc.text('Total Quantity', colX.name + (colX.qty - colX.name)/2, y + 5.5, { align: 'center' })
   doc.text(`${totalQty}`, colX.qty + (colX.unit - colX.qty)/2, y + 5.5, { align: 'center' })
-  doc.text(`${formatINR(totalTaxable)}`, colX.cgst - 2, y + 5.5, { align: 'right' })
-  doc.text(`${formatINR(totalCGST)}`, colX.cgst + 28, y + 5.5, { align: 'right' })
-  doc.text(`${formatINR(totalSGST)}`, colX.sgst + 28, y + 5.5, { align: 'right' })
-  doc.text(`${formatINR(grandTotal)}`, endX - 2, y + 5.5, { align: 'right' })
+  const safePrintRupee = (val, xPos, yPos) => {
+    const str = formatINR(val);
+    doc.text(str, xPos, yPos, { align: 'right' });
+    doc.text('₹', xPos - doc.getTextWidth(str) - 1, yPos, { align: 'right' });
+  };
+  
+  safePrintRupee(totalTaxable, colX.cgst - 2, y + 5.5)
+  safePrintRupee(totalCGST, colX.cgst + wCgst - 2, y + 5.5)
+  safePrintRupee(totalSGST, colX.sgst + wSgst - 2, y + 5.5)
+  safePrintRupee(grandTotal, endX - 2, y + 5.5)
   y += 8
 
   // ── 7. SUMMARY & BANK DETAILS SECTION ──────────────────
@@ -311,10 +386,10 @@ export async function generateInvoicePDF(form, items) {
   // Box for Totals on the Right
   rect(margin + bankW, y, sumW, 28)
   const sumLabels = [
-    { l: 'Total Amount Before Tax', v: formatINR(totalTaxable) },
-    { l: 'Add : CGST', v: formatINR(totalCGST) },
-    { l: 'Add : SGST', v: formatINR(totalSGST) },
-    { l: 'Total Amount', v: formatINR(grandTotal) }
+    { l: 'Total Amount Before Tax', v: totalTaxable },
+    { l: 'Add : CGST', v: totalCGST },
+    { l: 'Add : SGST', v: totalSGST },
+    { l: 'Total Amount', v: grandTotal }
   ]
   
   sumLabels.forEach((item, i) => {
@@ -323,7 +398,12 @@ export async function generateInvoicePDF(form, items) {
     doc.text(item.l, margin + bankW + 4, sy + 5.5)
     doc.text(':', margin + usable - 42, sy + 5.5)
     setFont(9, 'bold')
-    doc.text(item.v, margin + usable - 4, sy + 5.5, { align: 'right' })
+    
+    const str = formatINR(item.v);
+    const xP = margin + usable - 4;
+    doc.text(str, xP, sy + 5.5, { align: 'right' });
+    doc.text('₹', xP - doc.getTextWidth(str) - 1.5, sy + 5.5, { align: 'right' });
+    
     if (i < 3) line(margin + bankW, sy + 7, margin + usable, sy + 7)
   })
 
