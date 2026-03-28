@@ -58,8 +58,7 @@ export function InvoiceDetailsForm({ form, errors, onChange }) {
  */
 export function BillToForm({ billTo, errors, onChange, sheetCustomers = [] }) {
   const handlePresetSelect = (e) => {
-    const combined = [...sheetCustomers, ...PRESET_CUSTOMERS];
-    const selected = combined.find(c => c.name === e.target.value)
+    const selected = sheetCustomers.find(c => c.name === e.target.value)
     if (selected) {
       onChange({
         ...billTo,
@@ -80,26 +79,21 @@ export function BillToForm({ billTo, errors, onChange, sheetCustomers = [] }) {
         <span className="card-title">Bill To (Customer Details)</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <span className="form-label" style={{ marginBottom: 0, textTransform: 'none', fontSize: '0.65rem' }}>Presets:</span>
-          <select 
-            className="form-select" 
-            style={{ width: 'auto', padding: '0.2rem 0.5rem', height: '28px', fontSize: '0.7rem' }}
-            onChange={handlePresetSelect}
-            value=""
-          >
-            <option value="" disabled>Select a customer...</option>
-            {sheetCustomers.length > 0 && (
-              <optgroup label="From Google Sheets">
-                {sheetCustomers.map((c, i) => (
-                  <option key={`sheet-${i}`} value={c.name}>{c.name}</option>
-                ))}
-              </optgroup>
-            )}
-            <optgroup label="Default Presets">
-              {PRESET_CUSTOMERS.map(c => (
-                <option key={`preset-${c.name}`} value={c.name}>{c.name}</option>
+          {sheetCustomers.length > 0 ? (
+            <select 
+              className="form-select" 
+              style={{ width: 'auto', padding: '0.2rem 0.5rem', height: '28px', fontSize: '0.7rem' }}
+              onChange={handlePresetSelect}
+              value=""
+            >
+              <option value="" disabled>Select a customer...</option>
+              {sheetCustomers.map((c, i) => (
+                <option key={`sheet-${i}`} value={c.name}>{c.name}</option>
               ))}
-            </optgroup>
-          </select>
+            </select>
+          ) : (
+            <span style={{ fontSize: '0.7rem', color: '#666' }}>Connect Google</span>
+          )}
         </div>
         <span className="section-label" style={{ marginLeft: '0.5rem' }}>Section 2</span>
       </div>
