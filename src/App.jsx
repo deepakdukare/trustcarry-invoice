@@ -10,7 +10,7 @@ import { ToastContainer, useToast } from './components/Toast.jsx'
 
 import { DEFAULT_FORM, DEFAULT_ITEM } from './constants.js'
 import { generateInvoicePDF } from './pdfGenerator.js'
-import { appendInvoiceToSheet } from './sheetsService.js'
+import { appendInvoiceToSheet, getCustomersFromSheet } from './sheetsService.js'
 
 // ──────────────────────────────────────────────────────────
 // Validation
@@ -64,6 +64,7 @@ export default function App() {
   const [googleUser, setGoogleUser] = useState(null)
   const [accessToken, setAccessToken] = useState(null)
   const [lastSavedAt, setLastSavedAt] = useState(null)
+  const [sheetCustomers, setSheetCustomers] = useState([])
 
   // ── Google Login ────────────────────────────────────────
   const googleLogin = useGoogleLogin({
@@ -80,6 +81,17 @@ export default function App() {
       } catch {
         setGoogleUser({ name: '', email: '' })
         success('Google account connected')
+      }
+      
+      // Load customers from Sheet2
+      try {
+        const custs = await getCustomersFromSheet(tokenResponse.access_token)
+        setSheetCustomers(custs)
+        if (custs.length > 0) {
+          success(`Loaded ${custs.length} customers from Sheet2`)
+        }
+      } catch (err) {
+        console.error('Failed to load Sheet2 customers', err)
       }
     },
     onError: () => error('Google sign-in failed. Please try again.'),
@@ -216,7 +228,7 @@ export default function App() {
       <main className="main-content" id="main">
         <div className="form-area">
           <InvoiceDetailsForm form={form} errors={errors} onChange={handleFormChange} />
-          <BillToForm billTo={form.billTo} errors={errors} onChange={handleBillToChange} />
+          <BillToForm billTo={form.billTo} errors={errors} onChange={handleBillToChange} sheetCustomers={sheetCustomers} />
           <LineItemsTable
             items={items}
             errors={errors}

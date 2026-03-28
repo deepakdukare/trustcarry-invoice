@@ -66,3 +66,35 @@ export function getSheetUrl() {
   if (!SPREADSHEET_ID || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID') return null
   return `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}`
 }
+
+/**
+ * Fetch Customer List directly from "Sheet2"
+ * Expected columns: A=Name, B=Address, C=State (opt), D=StateCode (opt)
+ */
+export async function getCustomersFromSheet(accessToken) {
+  if (!SPREADSHEET_ID || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID') return []
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Sheet2!A2:D`
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    if (!res.ok) return []
+
+    const data = await res.json()
+    if (!data.values) return []
+
+    return data.values.map(r => ({
+      name: r[0] || '',
+      address: r[1] || '',
+      state: r[2] || 'Maharashtra',
+      stateCode: r[3] || '27',
+    })).filter(c => c.name)
+  } catch (err) {
+    console.error('Failed to fetch customers from Sheet2', err)
+    return []
+  }
+}

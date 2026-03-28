@@ -56,9 +56,10 @@ export function InvoiceDetailsForm({ form, errors, onChange }) {
 /**
  * Customer / Bill To form (SRS Section 4.2)
  */
-export function BillToForm({ billTo, errors, onChange }) {
+export function BillToForm({ billTo, errors, onChange, sheetCustomers = [] }) {
   const handlePresetSelect = (e) => {
-    const selected = PRESET_CUSTOMERS.find(c => c.name === e.target.value)
+    const combined = [...sheetCustomers, ...PRESET_CUSTOMERS];
+    const selected = combined.find(c => c.name === e.target.value)
     if (selected) {
       onChange({
         ...billTo,
@@ -86,9 +87,18 @@ export function BillToForm({ billTo, errors, onChange }) {
             value=""
           >
             <option value="" disabled>Select a customer...</option>
-            {PRESET_CUSTOMERS.map(c => (
-              <option key={c.name} value={c.name}>{c.name}</option>
-            ))}
+            {sheetCustomers.length > 0 && (
+              <optgroup label="From Google Sheets">
+                {sheetCustomers.map((c, i) => (
+                  <option key={`sheet-${i}`} value={c.name}>{c.name}</option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Default Presets">
+              {PRESET_CUSTOMERS.map(c => (
+                <option key={`preset-${c.name}`} value={c.name}>{c.name}</option>
+              ))}
+            </optgroup>
           </select>
         </div>
         <span className="section-label" style={{ marginLeft: '0.5rem' }}>Section 2</span>
