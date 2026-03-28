@@ -169,6 +169,12 @@ export default function App() {
       const filename = await generateInvoicePDF(form, items)
       remove(tid)
       success(`Downloaded: ${filename}`)
+      
+      // Auto-trigger Google Sheets save right after downloading invoice!
+      if (googleUser && accessToken) {
+        handleSaveToSheets()
+      }
+      
     } catch (err) {
       remove(tid)
       error(`PDF generation failed: ${err.message}`)
