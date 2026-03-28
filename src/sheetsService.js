@@ -41,19 +41,25 @@ export async function appendInvoiceToSheet(form, items, accessToken, userEmail) 
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
 
+  const bodyData = {
+    range: SHEET_RANGE,
+    majorDimension: 'ROWS',
+    values: [rowData]
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ values: [rowData] }),
+    body: JSON.stringify(bodyData),
   })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     const msg = err?.error?.message || `HTTP ${res.status}`
-    throw new Error(`Google Sheets API error: ${msg}`)
+    throw new Error(`${msg}`)
   }
 
   return true
